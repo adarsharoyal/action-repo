@@ -5,7 +5,9 @@ from datetime import datetime
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env
+# -------------------------
+# Load environment variables
+# -------------------------
 load_dotenv()
 
 app = Flask(__name__)
@@ -69,7 +71,6 @@ def get_events():
 def webhook():
     """Endpoint to receive GitHub webhooks"""
     try:
-        # Check JSON payload
         if not request.is_json:
             print("❌ Received non-JSON payload")
             return jsonify({'error': 'Payload must be JSON'}), 400
@@ -77,7 +78,7 @@ def webhook():
         payload = request.get_json()
         headers = request.headers
 
-        # Log incoming payload for debugging
+        # Debug logs
         print("Incoming webhook payload:", payload)
         event_type = headers.get('X-GitHub-Event', '').lower()
         print("GitHub Event Type:", event_type)
@@ -131,7 +132,13 @@ def handle_pull_request_event(payload):
         return
 
     action = payload.get('action', '')
-    event_action = 'MERGE' if action == 'closed' and pr_data.get('merged', False) else 'PULL_REQUEST'
+    is_merged = action == 'closed' and pr_data.get('merged', False)
+    event_action = 'MERGE' if is_merged else 'PULL_REQUEST'
+
+    # Use merged_at timestamp for MERGE, updated_at otherwise
+    timestamp = pr_data.get('merged_at') if is_merged else pr_data.get('updated_at')
+    if not timestamp:
+        timestamp = datetime.utcnow().isoformat() + 'Z'
 
     event_data = {
         'request_id': str(pr_data.get('id', '')),
@@ -139,7 +146,7 @@ def handle_pull_request_event(payload):
         'action': event_action,
         'from_branch': pr_data.get('head', {}).get('ref', ''),
         'to_branch': pr_data.get('base', {}).get('ref', ''),
-        'timestamp': pr_data.get('updated_at', datetime.utcnow().isoformat() + 'Z')
+        'timestamp': timestamp
     }
 
     collection.insert_one(event_data)
