@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Webhook Events</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .subtitle {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .status-bar {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pulse {
+            width: 12px;
+            height: 12px;
+            background: #4ade80;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .events-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .events-header {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .events-header h2 {
+            color: #333;
+            font-size: 1.5rem;
+        }
+
+        .events-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .event-item {
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+            transition: background-color 0.3s ease;
+            animation: slideIn 0.5s ease;
+        }
+
+        .event-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .event-item:last-child {
+            border-bottom: none;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .event-action {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .action-push {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .action-pull_request {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .action-merge {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .event-message {
+            font-size: 1rem;
+            color: #333;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+
+        .event-author {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .event-branch {
+            font-weight: 500;
+            color: #4b5563;
+        }
+
+        .event-timestamp {
+            font-size: 0.875rem;
+            color: #6b7280;
+            font-style: italic;
+        }
+
+        .no-events {
+            padding: 60px 20px;
+            text-align: center;
+            color: #9ca3af;
+        }
+
+        .no-events svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #9ca3af;
+        }
+
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Scrollbar styling */
+        .events-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .events-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .events-list::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        .events-list::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>GitHub Webhook Monitor</h1>
+            <p class="subtitle">Real-time GitHub events tracking</p>
+        </header>
+
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="pulse"></div>
+                <span>Live</span>
+            </div>
+            <div id="last-updated">Loading...</div>
+        </div>
+
+        <div class="events-container">
+            <div class="events-header">
+                <h2>Recent Events</h2>
+            </div>
+            <div class="events-list" id="events-list">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading events...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let lastEventId = null;
+
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp);
+            const day = date.getUTCDate();
+            const suffix = getDaySuffix(day);
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'];
+            const month = monthNames[date.getUTCMonth()];
+            const year = date.getUTCFullYear();
+            let hours = date.getUTCHours();
+            const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12 || 12;
+
+            return `${day}${suffix} ${month} ${year} - ${hours}:${minutes} ${ampm} UTC`;
+        }
+
+        function getDaySuffix(day) {
+            if (day >= 11 && day <= 13) return 'th';
+            switch (day % 10) {
+                case 1: return 'st';
+                case 2: return 'nd';
+                case 3: return 'rd';
+                default: return 'th';
+            }
+        }
+
+        function formatEventMessage(event) {
+            const author = `<span class="event-author">${event.author}</span>`;
+            const fromBranch = `<span class="event-branch">${event.from_branch}</span>`;
+            const toBranch = `<span class="event-branch">${event.to_branch}</span>`;
+            const timestamp = formatTimestamp(event.timestamp);
+
+            switch (event.action) {
+                case 'PUSH':
+                    return `${author} pushed to ${toBranch} on ${timestamp}`;
+                case 'PULL_REQUEST':
+                    return `${author} submitted a pull request from ${fromBranch} to ${toBranch} on ${timestamp}`;
+                case 'MERGE':
+                    return `${author} merged branch ${fromBranch} to ${toBranch} on ${timestamp}`;
+                default:
+                    return 'Unknown event';
+            }
+        }
+
+        function createEventElement(event) {
+            const eventDiv = document.createElement('div');
+            eventDiv.className = 'event-item';
+            eventDiv.innerHTML = `
+                <span class="event-action action-${event.action.toLowerCase()}">${event.action}</span>
+                <div class="event-message">${formatEventMessage(event)}</div>
+            `;
+            return eventDiv;
+        }
+
+        async function fetchEvents() {
+            try {
+                const response = await fetch('/api/events');
+                if (!response.ok) throw new Error('Failed to fetch events');
+
+                const events = await response.json();
+                const eventsList = document.getElementById('events-list');
+
+                if (events.length === 0) {
+                    eventsList.innerHTML = `
+                        <div class="no-events">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4">
+                                </path>
+                            </svg>
+                            <h3>No events yet</h3>
+                            <p>Waiting for GitHub webhook events...</p>
+                        </div>
+                    `;
+                } else {
+                    eventsList.innerHTML = '';
+                    events.forEach(event => {
+                        eventsList.appendChild(createEventElement(event));
+                    });
+                }
+
+                // Update last updated time
+                const now = new Date();
+                document.getElementById('last-updated').textContent =
+                    `Updated: ${now.toLocaleTimeString()}`;
+
+            } catch (error) {
+                console.error('Error fetching events:', error);
+                document.getElementById('events-list').innerHTML = `
+                    <div class="no-events">
+                        <h3>Error loading events</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Fetch events immediately on load
+        fetchEvents();
+
+        // Poll every 15 seconds
+        setInterval(fetchEvents, 15000);
+    </script>
+</body>
+</html>
