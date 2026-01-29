@@ -3,6 +3,6 @@ merge-test
 merge test line
 
 hi
- main
+ main.
 test 3 merge 
 .
