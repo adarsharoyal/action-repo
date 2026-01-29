@@ -5,3 +5,4 @@ merge test line
 hi
  main
 test 3 merge 
+.
