@@ -10,6 +10,7 @@ A Flask-based webhook receiver that captures GitHub events (Push, Pull Request, 
 - Real-time UI that polls events every 15 seconds
 - Clean and minimal design
 - RESTful API endpoint to fetch events
+Merge test
 
 ## Prerequisites
 
@@ -263,3 +264,4 @@ Built as part of Developer Assessment Task
 =======
 # action-repo
 >>>>>>> 24d2cd961476e42668a71cee76fee1b2c5cb3016
+

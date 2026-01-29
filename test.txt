@@ -1,2 +1,6 @@
-hi bro adarsha its a test file
+hi bro adarsha its a test fil
+merge-test
 merge test line
+
+hi
+ main
